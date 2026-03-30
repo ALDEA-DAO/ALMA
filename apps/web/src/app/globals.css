@@ -1,0 +1,131 @@
+@import "tailwindcss";
+
+:root {
+  /* ALDEA World brand palette — dark, cryptographic aesthetic */
+  --alma-bg: #0a0a0f;
+  --alma-bg-card: #12121a;
+  --alma-bg-elevated: #1a1a2e;
+  --alma-border: #2a2a3e;
+  --alma-border-glow: #6366f1;
+  --alma-text: #e4e4eb;
+  --alma-text-muted: #8888a0;
+  --alma-text-dim: #55556a;
+  --alma-accent: #818cf8;
+  --alma-accent-bright: #a5b4fc;
+  --alma-success: #34d399;
+  --alma-error: #f87171;
+  --alma-warning: #fbbf24;
+}
+
+body {
+  background: var(--alma-bg);
+  color: var(--alma-text);
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+/* Subtle grid background pattern */
+.alma-grid-bg {
+  background-image:
+    linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+/* Glow effects */
+.alma-glow {
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.15), 0 0 60px rgba(99, 102, 241, 0.05);
+}
+
+.alma-glow-text {
+  text-shadow: 0 0 20px rgba(129, 140, 248, 0.5);
+}
+
+/* Card styling */
+.alma-card {
+  background: var(--alma-bg-card);
+  border: 1px solid var(--alma-border);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.alma-card:hover {
+  border-color: var(--alma-border-glow);
+}
+
+/* Button base */
+.alma-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 28px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 15px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+}
+
+.alma-btn-primary {
+  background: linear-gradient(135deg, #6366f1, #818cf8);
+  color: white;
+}
+
+.alma-btn-primary:hover {
+  background: linear-gradient(135deg, #818cf8, #a5b4fc);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+}
+
+.alma-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.alma-btn-secondary {
+  background: transparent;
+  color: var(--alma-accent);
+  border: 1px solid var(--alma-border);
+}
+
+.alma-btn-secondary:hover {
+  border-color: var(--alma-border-glow);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+/* Pulse animation for loading states */
+@keyframes alma-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.alma-pulse {
+  animation: alma-pulse 2s ease-in-out infinite;
+}
+
+/* Fade in animation */
+@keyframes alma-fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.alma-fade-in {
+  animation: alma-fade-in 0.6s ease-out forwards;
+}
+
+/* Spinner */
+@keyframes alma-spin {
+  to { transform: rotate(360deg); }
+}
+
+.alma-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--alma-border);
+  border-top-color: var(--alma-accent);
+  border-radius: 50%;
+  animation: alma-spin 0.8s linear infinite;
+}

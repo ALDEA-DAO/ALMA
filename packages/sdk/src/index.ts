@@ -15,3 +15,9 @@ export type {
   PublishRevocationParams,
   CardanoTxResult,
 } from "./providers/cardano.js";
+export { PublicMintListener } from "./public-mint.js";
+export type {
+  PublicMintListenerConfig,
+  MintProcessedEvent,
+  MintError,
+} from "./public-mint.js";
