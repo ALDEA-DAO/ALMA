@@ -1,0 +1,49 @@
+version: "3.8"
+
+# Soulbound Protocol — Local development environment
+#
+# Servicios incluidos:
+#   - proof-server: Servidor de ZK Proofs de Midnight (puerto 6300)
+#   - midnight-node: Nodo Midnight conectado a testnet-02
+#
+# Para Cardano se usa Blockfrost API (ver .env) — no se corre un nodo local.
+#
+# Uso:
+#   Arrancar todo:          docker compose up -d
+#   Solo proof-server:      docker compose up -d proof-server
+#   Ver logs:               docker compose logs -f
+#   Detener todo:           docker compose down
+
+services:
+  proof-server:
+    image: midnightntwrk/proof-server:7.0.0
+    container_name: alma-proof-server
+    ports:
+      - "${PROOF_SERVER_PORT:-6300}:6300"
+    command: ["--", "midnight-proof-server", "-v"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6300/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  midnight-node:
+    image: midnightntwrk/midnight-node:latest
+    container_name: alma-midnight-node
+    ports:
+      - "${MIDNIGHT_NODE_PORT:-9944}:9944"   # RPC WebSocket
+      - "${MIDNIGHT_NODE_P2P_PORT:-30333}:30333" # P2P
+    environment:
+      - CFG_PRESET=${MIDNIGHT_CFG_PRESET:-testnet-02}
+    volumes:
+      - midnight-node-data:/data
+    restart: unless-stopped
+    depends_on:
+      proof-server:
+        condition: service_healthy
+
+volumes:
+  midnight-node-data:
+    driver: local

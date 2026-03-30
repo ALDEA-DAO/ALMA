@@ -1,0 +1,18 @@
+name = "adasouls-labs/soulbound-registry"
+version = "0.1.0"
+compiler = "v1.1.7"
+plutus = "v3"
+license = "Apache-2.0"
+description = "Soulbound Protocol — Cardano registry contracts (issuers, schemas, revocation anchors)"
+
+[repository]
+user = "adasouls-labs"
+project = "soulbound-protocol"
+platform = "github"
+
+[[dependencies]]
+name = "aiken-lang/stdlib"
+version = "v2.2.0"
+source = "github"
+
+[config]

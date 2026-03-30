@@ -1,0 +1,22 @@
+{
+  "network": "mainnet",
+  "cardano": {
+    "network": "mainnet",
+    "blockfrostUrl": "https://cardano-mainnet.blockfrost.io/api/v0"
+  },
+  "midnight": {
+    "network": "mainnet",
+    "nodeUrl": "wss://rpc.mainnet.midnight.network",
+    "proofServerUrl": "http://localhost:6300"
+  },
+  "contracts": {
+    "registryPolicyId": "",
+    "credentialContractAddress": "",
+    "publicMintContractAddress": ""
+  },
+  "aldea": {
+    "issuerPolicyId": "",
+    "treasuryAddress": "",
+    "mintPriceLovelace": "10000000"
+  }
+}

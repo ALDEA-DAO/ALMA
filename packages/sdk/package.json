@@ -1,0 +1,58 @@
+{
+  "name": "@adasouls/soulbound-sdk",
+  "version": "0.1.0-alpha.1",
+  "description": "Soulbound Protocol — TypeScript SDK for soulbound credentials on Cardano + Midnight (issuers, holders, verifiers)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/adasouls-labs/soulbound-protocol",
+    "directory": "packages/sdk"
+  },
+  "keywords": ["adasouls", "soulbound", "credentials", "cardano", "midnight", "zk-proofs", "sdk", "web3"],
+  "files": ["dist", "package.json", "README.md"],
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./providers/mock": {
+      "import": "./dist/providers/mock.js",
+      "types": "./dist/providers/mock.d.ts"
+    },
+    "./providers/midnight": {
+      "import": "./dist/providers/midnight.js",
+      "types": "./dist/providers/midnight.d.ts"
+    },
+    "./providers/cardano": {
+      "import": "./dist/providers/cardano.js",
+      "types": "./dist/providers/cardano.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@adasouls/soulbound-core": "*"
+  },
+  "peerDependencies": {
+    "@meshsdk/core": ">=1.7.0",
+    "@midnight-ntwrk/midnight-js-contracts": ">=0.1.0",
+    "@midnight-ntwrk/midnight-js-types": ">=0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@meshsdk/core": { "optional": true },
+    "@midnight-ntwrk/midnight-js-contracts": { "optional": true },
+    "@midnight-ntwrk/midnight-js-types": { "optional": true }
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.0.0"
+  }
+}

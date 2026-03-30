@@ -1,0 +1,22 @@
+{
+  "network": "testnet",
+  "cardano": {
+    "network": "preprod",
+    "blockfrostUrl": "https://cardano-preprod.blockfrost.io/api/v0"
+  },
+  "midnight": {
+    "network": "testnet-02",
+    "nodeUrl": "wss://rpc.testnet-02.midnight.network",
+    "proofServerUrl": "http://localhost:6300"
+  },
+  "contracts": {
+    "registryPolicyId": "",
+    "credentialContractAddress": "",
+    "publicMintContractAddress": ""
+  },
+  "aldea": {
+    "issuerPolicyId": "",
+    "treasuryAddress": "",
+    "mintPriceLovelace": "10000000"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "soulbound-protocol",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Soulbound Protocol — Soulbound credentials for Cardano + Midnight. By AdaSouls Labs.",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "test": "turbo test",
+    "lint": "turbo lint",
+    "compile:contracts": "compact compile contracts/midnight/**/*.compact",
+    "deploy:devnet": "npx tsx scripts/deploy-devnet.ts",
+    "build:cardano": "cd contracts/cardano && aiken build",
+    "check:cardano": "cd contracts/cardano && aiken check",
+    "start-proof-server": "docker compose up -d proof-server",
+    "start-node": "docker compose up -d midnight-node",
+    "start-devenv": "docker compose up -d",
+    "stop-devenv": "docker compose down",
+    "logs": "docker compose logs -f"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}
