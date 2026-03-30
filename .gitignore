@@ -57,4 +57,4 @@ coverage/
 *.log
 npm-debug.log*
 
-apps/
+apps/aldea-admin/
