@@ -1,8 +1,8 @@
 {
-  "name": "soulbound-protocol",
+  "name": "umbra-protocol",
   "version": "0.1.0",
   "private": true,
-  "description": "Soulbound Protocol — Soulbound credentials for Cardano + Midnight. By AdaSouls Labs.",
+  "description": "Umbra Protocol — Privacy-first soulbound credentials for Cardano + Midnight. By AdaSouls Labs.",
   "workspaces": [
     "packages/*",
     "apps/*"
