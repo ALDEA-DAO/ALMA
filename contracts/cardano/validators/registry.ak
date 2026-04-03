@@ -30,6 +30,7 @@ use soulbound/types.{
   PublishRevocation,
 }
 use soulbound/validation.{signed_by, is_non_empty, has_schemas}
+use aiken/collection/list
 use cardano/transaction.{Transaction, OutputReference}
 
 // ─── Main Validator ──────────────────────────────────────────────────────────
@@ -136,12 +137,33 @@ fn validate_deactivate_issuer(datum: IssuerDatum, tx: Transaction) -> Bool {
 ///   1. The registering issuer (registered_by) must sign
 ///   2. schema_id must be non-empty
 ///   3. Must have at least one required field
+///   4. (M-03) No existing schema with the same schema_id in reference inputs
 fn validate_register_schema(datum: SchemaDatum, tx: Transaction) -> Bool {
   let registrar_signed = signed_by(tx, datum.registered_by)
   let valid_id = is_non_empty(datum.schema_id)
   let has_required = has_schemas(datum.required_fields)
+  // (M-03) Check no duplicate schema_id exists. The frontend must include
+  // all existing schema UTxOs at the script address as reference inputs.
+  let no_duplicate = no_existing_schema(datum.schema_id, tx)
 
-  registrar_signed && valid_id && has_required
+  registrar_signed && valid_id && has_required && no_duplicate
+}
+
+/// (M-03) Check that no existing SchemaDatum with the same schema_id exists
+/// in the transaction's reference inputs.
+fn no_existing_schema(schema_id: ByteArray, tx: Transaction) -> Bool {
+  !list.any(
+    tx.reference_inputs,
+    fn(ref_input) {
+      when ref_input.output.datum is {
+        transaction.InlineDatum(raw_datum) -> {
+          expect existing: SchemaDatum = raw_datum
+          existing.schema_id == schema_id
+        }
+        _ -> False
+      }
+    },
+  )
 }
 
 /// Validate publishing a revocation anchor from Midnight.
