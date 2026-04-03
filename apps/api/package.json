@@ -1,0 +1,29 @@
+{
+  "name": "@aldea/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "fastify": "^5.2.0",
+    "@fastify/cors": "^10.0.0",
+    "@fastify/rate-limit": "^10.2.0",
+    "stripe": "^17.5.0",
+    "mercadopago": "^2.0.15",
+    "@adasouls/soulbound-core": "workspace:*",
+    "@adasouls/soulbound-sdk": "workspace:*",
+    "better-sqlite3": "^11.7.0",
+    "pino": "^9.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/better-sqlite3": "^7.6.12",
+    "typescript": "^5.7.2",
+    "tsx": "^4.19.0"
+  }
+}

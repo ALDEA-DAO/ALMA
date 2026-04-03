@@ -1,30 +1,30 @@
 // Soulbound Protocol — Compact compiler configuration (Midnight)
 //
-// Uso:
-//   Compilar un contrato:   compact compile contracts/midnight/ALMACredentialContract.compact contracts/midnight/out/
-//   Skip ZK keys (rápido):  compact compile --skip-zk contracts/midnight/ALMACredentialContract.compact contracts/midnight/out/
+// Usage:
+//   Compile a contract:     compact compile contracts/midnight/ALMACredentialContract.compact contracts/midnight/out/
+//   Skip ZK keys (fast):    compact compile --skip-zk contracts/midnight/ALMACredentialContract.compact contracts/midnight/out/
 //
-// El compilador genera en el directorio de output:
-//   - TypeScript API del contrato
+// The compiler generates in the output directory:
+//   - TypeScript contract API
 //   - ZK circuits (zkir)
-//   - Proving/verifying keys (requiere tiempo)
+//   - Proving/verifying keys (takes time)
 
 export const compactConfig = {
-  // Directorio raíz de contratos Midnight
+  // Root directory for Midnight contracts
   contractsDir: "contracts/midnight",
 
-  // Directorio de output del compilador
+  // Compiler output directory
   outputDir: "contracts/midnight/out",
 
-  // Contratos a compilar (en orden de dependencia)
+  // Contracts to compile (in dependency order)
   contracts: [
     "SoulboundCredentialContract.compact",
   ],
 
-  // Opciones del compilador
+  // Compiler options
   compilerOptions: {
-    // En desarrollo, usar --skip-zk para compilar rápido sin generar proving keys
-    // En CI/staging, generar keys completas
+    // In development, use --skip-zk to compile fast without generating proving keys
+    // In CI/staging, generate full keys
     skipZk: process.env.NODE_ENV === "development",
   },
 } as const;

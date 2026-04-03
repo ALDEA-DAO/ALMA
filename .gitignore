@@ -58,3 +58,5 @@ coverage/
 npm-debug.log*
 
 apps/aldea-admin/
+docs/
+ROADMAP.md

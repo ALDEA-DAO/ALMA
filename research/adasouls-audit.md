@@ -1,26 +1,26 @@
 # Audit: AdaSouls/Cardano-Soulbound
-### Referencia: https://github.com/AdaSouls/Cardano-Soulbound
-### Fecha: 2026-03-23
+### Reference: https://github.com/AdaSouls/Cardano-Soulbound
+### Date: 2026-03-23
 
 ---
 
-## 1. Qué está construido
+## 1. What is built
 
-### Contratos on-chain (Aiken)
+### On-chain contracts (Aiken)
 
-**`validators/soulbound.ak`** — Dos validators:
+**`validators/soulbound.ak`** — Two validators:
 
-- **`mint` (parameterizado)**: Recibe `MintParams` (policy + script). Valida que los tokens van a la dirección de locking y que la policy se cumple. Delega en `mint_validator` de la librería.
-- **`redeem` (sin parámetros)**: Maneja dos casos via redeemer:
-  - `ClaimToken` → verifica que el beneficiario firma la tx y actualiza el datum de "Issued" a "Claimed"
-  - `BurnToken` → verifica que la policy de burn se cumple
+- **`mint` (parameterized)**: Receives `MintParams` (policy + script). Validates that tokens go to the locking address and that the policy is satisfied. Delegates to `mint_validator` from the library.
+- **`redeem` (no parameters)**: Handles two cases via redeemer:
+  - `ClaimToken` → verifies that the beneficiary signs the tx and updates the datum from "Issued" to "Claimed"
+  - `BurnToken` → verifies that the burn policy is satisfied
 
-**`lib/soulbound/types.ak`** — Tipos core:
+**`lib/soulbound/types.ak`** — Core types:
 
 ```aiken
 DatumData {
   policy_id: PolicyId,
-  beneficiary: VerificationKeyHash,  -- hash del wallet, no la dirección pública
+  beneficiary: VerificationKeyHash,  -- wallet hash, not the public address
   status: ByteArray,                 -- "Issued" | "Claimed"
   metadata: Metadata,
 }
@@ -28,128 +28,128 @@ DatumData {
 MintParams {
   policy: Policy,
   script: ScriptType,
-  nonce: ByteArray,                  -- garantiza PolicyId único por colección
+  nonce: ByteArray,                  -- ensures unique PolicyId per collection
 }
 
--- Sistema de policies flexible
+-- Flexible policy system
 ScriptType = Sig | All | Any | AtLeast | After | Before
 Policy = NativeScript(List<ScriptType>) | ...
 ```
 
-**`lib/soulbound/functions.ak`** — Lógica de validación:
+**`lib/soulbound/functions.ak`** — Validation logic:
 
-- `mint_validator`: Verifica que tokens van al script address, valida policy
-- `redeem_validator`: Maneja claim y burn, verifica firma del beneficiario
-- `check_policy`: Evalúa policies compuestas (All/Any/AtLeast/Sig/After/Before) — la función más reutilizable del repo
+- `mint_validator`: Verifies tokens go to the script address, validates policy
+- `redeem_validator`: Handles claim and burn, verifies beneficiary signature
+- `check_policy`: Evaluates composite policies (All/Any/AtLeast/Sig/After/Before) — the most reusable function in the repo
 
 ### Off-chain (TypeScript/Deno + Lucid + Blockfrost)
 
-- **`src/mint.ts`**: Crea un soulbound token con datum `{beneficiary, status: "Issued"}` y lo deposita en el script address con 1 ADA.
-- **`src/claim.ts`**: El beneficiario firma la tx, el datum se actualiza a `{status: "Claimed"}`, el token sigue en el script address.
-- **`src/burn.ts`**: Quema el token cuando la policy lo permite.
-- **`generate-credentials.ts`**: Genera wallet keys para testnet.
+- **`src/mint.ts`**: Creates a soulbound token with datum `{beneficiary, status: "Issued"}` and deposits it at the script address with 1 ADA.
+- **`src/claim.ts`**: The beneficiary signs the tx, the datum is updated to `{status: "Claimed"}`, the token remains at the script address.
+- **`src/burn.ts`**: Burns the token when the policy allows it.
+- **`generate-credentials.ts`**: Generates wallet keys for testnet.
 
-### Stack tecnológico actual
-| Componente | Tecnología |
+### Current tech stack
+| Component | Technology |
 |---|---|
-| Contratos | Aiken v1.7.0 (stdlib) |
+| Contracts | Aiken v1.7.0 (stdlib) |
 | Off-chain runtime | Deno |
-| Tx building | Lucid (versión antigua) |
+| Tx building | Lucid (old version) |
 | Blockchain API | Blockfrost (Preview testnet) |
-| Red de despliegue | Cardano Preview testnet |
+| Deployment network | Cardano Preview testnet |
 
 ---
 
-## 2. Qué es reutilizable para ALMA
+## 2. What is reusable for ALMA
 
-### Reutilizar directamente
+### Reuse directly
 
-**`check_policy` (functions.ak)** — La función más valiosa del repo. Evalúa policies compuestas con All/Any/AtLeast/Sig/After/Before. Se puede portar directamente al contrato `ALMARegistry` de ALMA para validar policies de issuers.
+**`check_policy` (functions.ak)** — The most valuable function in the repo. Evaluates composite policies with All/Any/AtLeast/Sig/After/Before. Can be ported directly to ALMA's `ALMARegistry` contract to validate issuer policies.
 
-**Concepto de `DatumData`** — La idea de guardar `{beneficiary_hash, status}` en el datum del UTxO es exactamente lo que ALMA necesita en la capa Cardano del `ALMARegistry`. El campo `beneficiary` como hash (no dirección pública) ya respeta privacidad.
+**`DatumData` concept** — The idea of storing `{beneficiary_hash, status}` in the UTxO datum is exactly what ALMA needs in the Cardano layer of `ALMARegistry`. The `beneficiary` field as a hash (not public address) already respects privacy.
 
-**Patrón de parameterización por nonce** — `MintParams.nonce` garantiza que dos organizaciones con la misma policy generen PolicyIds distintos. ALMA reutiliza este patrón para garantizar un PolicyId único por organización emisora.
+**Nonce parameterization pattern** — `MintParams.nonce` ensures that two organizations with the same policy generate distinct PolicyIds. ALMA reuses this pattern to guarantee a unique PolicyId per issuing organization.
 
-**Sistema de types de policy** — `ScriptType` (Sig/All/Any/AtLeast/After/Before) es un sistema flexible que ALMA puede adoptar para definir qué condiciones deben cumplirse para que una organización emita credenciales válidas.
+**Policy type system** — `ScriptType` (Sig/All/Any/AtLeast/After/Before) is a flexible system that ALMA can adopt to define what conditions must be met for an organization to issue valid credentials.
 
-**Flujo mint → claim como base conceptual** — El ciclo Issued → Claimed de AdaSouls mapea directamente al ciclo PENDING → CLAIMED de ALMA. La lógica de que "solo el beneficiario puede claim" es idéntica.
+**Mint → claim flow as conceptual base** — The Issued → Claimed cycle in AdaSouls maps directly to ALMA's PENDING → CLAIMED cycle. The logic that "only the beneficiary can claim" is identical.
 
-### Reutilizar con modificaciones
+### Reuse with modifications
 
-**`validators/soulbound.ak`** — El mint validator se puede adaptar para el contrato `public-mint.ak` de ALMA (Fase 2.5, TASK-025). Agregar: validación de pago en ADA, anti-double-mint por wallet, y emisión hacia el contrato Midnight en lugar de quedarse en Cardano.
+**`validators/soulbound.ak`** — The mint validator can be adapted for ALMA's `public-mint.ak` contract (Phase 2.5, TASK-025). Add: ADA payment validation, per-wallet anti-double-mint, and emission to the Midnight contract instead of staying on Cardano.
 
-**Estructura del datum** — Extender `DatumData` para incluir los campos de `ALMACredential`: `schemaId`, `issuerOrgId`, `expiresAt`, `revocationAnchor`. El campo `metadata` ya existe como extensión flexible.
+**Datum structure** — Extend `DatumData` to include `ALMACredential` fields: `schemaId`, `issuerOrgId`, `expiresAt`, `revocationAnchor`. The `metadata` field already exists as a flexible extension.
 
 ---
 
-## 3. Qué debe reescribirse para ALMA
+## 3. What must be rewritten for ALMA
 
-### Nuevo contrato: `ALMARegistry` (Aiken)
+### New contract: `ALMARegistry` (Aiken)
 
-AdaSouls no tiene concepto de registry. ALMA necesita un contrato Cardano separado que:
-- Registre organizaciones emisoras con su PolicyId único
-- Registre schemas de credenciales
-- Publique anclas de revocación (sin revelar identidad del portador)
-- Exponga `is_valid_issuer()` e `is_valid_schema()` para verificación
+AdaSouls has no concept of a registry. ALMA needs a separate Cardano contract that:
+- Registers issuing organizations with their unique PolicyId
+- Registers credential schemas
+- Publishes revocation anchors (without revealing holder identity)
+- Exposes `is_valid_issuer()` and `is_valid_schema()` for verification
 
-### Nuevo contrato: `ALMACredentialContract` (Compact/Midnight)
+### New contract: `ALMACredentialContract` (Compact/Midnight)
 
-Todo el estado shielded de las credenciales individuales, la generación de ZK Proofs, y la lógica de membresía viven en Midnight. AdaSouls no tiene equivalente — es la pieza más nueva y compleja de ALMA.
+All shielded credential state, ZK Proof generation, and membership logic live on Midnight. AdaSouls has no equivalent — this is the newest and most complex piece of ALMA.
 
-### Nuevo contrato: `public-mint.ak` (Aiken, Fase 2.5)
+### New contract: `public-mint.ak` (Aiken, Phase 2.5)
 
-El mint público de ALMA requiere validación de pago en ADA. AdaSouls no tiene este concepto — sus tokens son emitidos por el issuer sin que el portador pague. ALMA necesita un contrato nuevo que:
-- Valide el UTxO de pago (monto correcto en ADA)
-- Envíe los fondos a la tesorería de ALDEA
-- Prevenga double-mint (1 wallet = 1 credencial)
+ALMA's public mint requires ADA payment validation. AdaSouls has no such concept — its tokens are issued by the issuer without the holder paying. ALMA needs a new contract that:
+- Validates the payment UTxO (correct ADA amount)
+- Sends funds to the ALDEA treasury
+- Prevents double-mint (1 wallet = 1 credential)
 
-### Runtime y librería off-chain
+### Runtime and off-chain library
 
-| Componente | AdaSouls | ALMA |
+| Component | AdaSouls | ALMA |
 |---|---|---|
-| Runtime | Deno | Node.js (compatibilidad npm) |
-| Tx building | Lucid (deprecated) | MeshJS (más mantenido) |
-| API | Blockfrost hardcoded | Provider abstracto (Blockfrost / Koios / custom) |
-| Distribución | Scripts standalone | npm package `@alma-protocol/sdk` |
-| Gestión de UTxOs | Manual (hardcoded en scripts) | Abstraída en el SDK |
+| Runtime | Deno | Node.js (npm compatibility) |
+| Tx building | Lucid (deprecated) | MeshJS (better maintained) |
+| API | Blockfrost hardcoded | Abstract provider (Blockfrost / Koios / custom) |
+| Distribution | Standalone scripts | npm package `@alma-protocol/sdk` |
+| UTxO management | Manual (hardcoded in scripts) | Abstracted in the SDK |
 
-**Lucid está siendo abandonado** — El repo de AdaSouls usa una versión antigua de Lucid. ALMA debe usar MeshJS desde el día uno para no heredar deuda técnica.
+**Lucid is being abandoned** — The AdaSouls repo uses an old version of Lucid. ALMA must use MeshJS from day one to avoid inheriting tech debt.
 
-**UTxO management manual** — En AdaSouls, los scripts de claim y burn requieren actualizar a mano los UTxOs del output anterior. El SDK de ALMA debe abstraer completamente este proceso.
+**Manual UTxO management** — In AdaSouls, claim and burn scripts require manually updating UTxOs from the previous output. ALMA's SDK must fully abstract this process.
 
-### Sistema de estados extendido
+### Extended state system
 
 | AdaSouls | ALMA |
 |---|---|
 | `"Issued"` | `PENDING` |
 | `"Claimed"` | `CLAIMED` |
-| (no existe) | `REVOKED` |
-| (no existe) | `EXPIRED` |
+| (does not exist) | `REVOKED` |
+| (does not exist) | `EXPIRED` |
 
-### Soporte multi-token y bulk
+### Multi-token and bulk support
 
-AdaSouls opera con 1 token por transacción. ALMA necesita operaciones bulk para el genesis airdrop (TASK-027) y el bulk mint del admin dashboard (TASK-035).
-
----
-
-## 4. Riesgos y notas técnicas
-
-**Riesgo 1 — Lucid deprecado**: No heredar la dependencia de Lucid. Usar MeshJS desde el inicio del SDK.
-
-**Riesgo 2 — UTxO contention en bulk mint**: Al emitir muchas credenciales en paralelo, múltiples txs pueden intentar consumir los mismos UTxOs. El SDK debe implementar una cola de transacciones o un sistema de UTxO locking.
-
-**Riesgo 3 — Datum inline vs hash**: AdaSouls usa inline datums (el datum completo está en la tx). Para ALMA en Cardano esto está bien para el Registry, pero en Midnight el estado shielded no puede ser inline. Diseñar la interfaz Cardano↔Midnight teniendo esto en cuenta.
-
-**Nota — CIP-0888**: AdaSouls propuso su propio CIP (CIP-0888) para soulbound tokens en Cardano. El ALMA-CIP debe revisarlo y decidir si extenderlo o proponer uno nuevo. Dado que ALMA agrega la capa Midnight/ZK, probablemente es un CIP complementario (no reemplaza CIP-0888, sino que lo extiende con privacidad).
+AdaSouls operates with 1 token per transaction. ALMA needs bulk operations for the genesis airdrop (TASK-027) and the admin dashboard bulk mint (TASK-035).
 
 ---
 
-## 5. Conclusión
+## 4. Risks and technical notes
 
-AdaSouls/Cardano-Soulbound es una base técnica sólida y directamente relevante para ALMA. El 30-40% del trabajo de contratos Cardano ya está resuelto conceptualmente. La pieza crítica nueva es todo lo que involucra Midnight (ZK Proofs, estado shielded, `ALMACredentialContract`), que no tiene precedente en AdaSouls.
+**Risk 1 — Lucid deprecated**: Do not inherit the Lucid dependency. Use MeshJS from the SDK's inception.
 
-**Prioridad de reutilización:**
-1. `check_policy` → portar a `ALMARegistry`
-2. Patrón datum `{beneficiary_hash, status}` → extender para `ALMACredential`
-3. Patrón de parameterización con nonce → reutilizar para PolicyIds de issuers
-4. Concepto mint→claim → base para el flujo PENDING→CLAIMED de ALMA
+**Risk 2 — UTxO contention in bulk mint**: When issuing many credentials in parallel, multiple txs may attempt to consume the same UTxOs. The SDK must implement a transaction queue or UTxO locking system.
+
+**Risk 3 — Datum inline vs hash**: AdaSouls uses inline datums (the full datum is in the tx). For ALMA on Cardano this is fine for the Registry, but on Midnight the shielded state cannot be inline. Design the Cardano↔Midnight interface with this in mind.
+
+**Note — CIP-0888**: AdaSouls proposed their own CIP (CIP-0888) for soulbound tokens on Cardano. The ALMA-CIP should review it and decide whether to extend or propose a new one. Given that ALMA adds the Midnight/ZK layer, it is probably a complementary CIP (does not replace CIP-0888, but extends it with privacy).
+
+---
+
+## 5. Conclusion
+
+AdaSouls/Cardano-Soulbound is a solid technical base directly relevant to ALMA. 30-40% of the Cardano contract work is already conceptually solved. The critical new piece is everything involving Midnight (ZK Proofs, shielded state, `ALMACredentialContract`), which has no precedent in AdaSouls.
+
+**Reuse priority:**
+1. `check_policy` → port to `ALMARegistry`
+2. Datum pattern `{beneficiary_hash, status}` → extend for `ALMACredential`
+3. Nonce parameterization pattern → reuse for issuer PolicyIds
+4. Mint → claim concept → base for ALMA's PENDING → CLAIMED flow

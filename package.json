@@ -20,7 +20,10 @@
     "start-node": "docker compose up -d midnight-node",
     "start-devenv": "docker compose up -d",
     "stop-devenv": "docker compose down",
-    "logs": "docker compose logs -f"
+    "logs": "docker compose logs -f",
+    "api:dev": "npm run dev --workspace=apps/api",
+    "api:build": "npm run build --workspace=apps/api",
+    "api:start": "npm run start --workspace=apps/api"
   },
   "devDependencies": {
     "turbo": "^2.3.3",
