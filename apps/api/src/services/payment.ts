@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
 import type { createQueries, PaymentMethod, PaymentRecord } from "../db/schema.js";
+import type { CardanoReceiptService } from "./cardano-receipt.js";
 
 export interface CreatePaymentInput {
   method: PaymentMethod;
@@ -22,6 +23,7 @@ export class PaymentService {
     private db: Database.Database,
     private queries: ReturnType<typeof createQueries>,
     private mintService: MintService,
+    private receiptService?: CardanoReceiptService,
   ) {}
 
   createPayment(input: CreatePaymentInput): PaymentRecord {
@@ -96,7 +98,13 @@ export class PaymentService {
       this.queries.setCredentialId.run(credentialId, paymentId);
       this.queries.insertAuditLog.run(paymentId, "MINT_INITIATED", "COMPLETE", `Credential issued: ${credentialId}`);
 
-      return this.queries.getPaymentById.get(paymentId) as PaymentRecord;
+      // Fire-and-forget: submit Cardano receipt for fiat payments
+      const updatedPayment = this.queries.getPaymentById.get(paymentId) as PaymentRecord;
+      if (this.isFiatPayment(updatedPayment.method)) {
+        this.submitReceipt(paymentId).catch(() => {});
+      }
+
+      return updatedPayment;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       this.queries.setError.run(message, paymentId);
@@ -121,6 +129,41 @@ export class PaymentService {
 
   getPendingReconciliation(): PaymentRecord[] {
     return this.queries.getPendingReconciliation.all() as PaymentRecord[];
+  }
+
+  async submitReceipt(paymentId: string): Promise<void> {
+    if (!this.receiptService?.isAvailable()) return;
+
+    const payment = this.queries.getPaymentById.get(paymentId) as PaymentRecord | undefined;
+    if (!payment || payment.receipt_status === "SUBMITTED") return;
+
+    this.queries.setReceiptStatus.run("PENDING", paymentId);
+
+    const result = await this.receiptService.submitFiatReceipt({
+      walletHash: payment.wallet_hash,
+      paymentAmount: Number(payment.amount),
+      paymentMethod: payment.method,
+    });
+
+    if (result.success) {
+      this.queries.setReceiptTxHash.run(result.txHash, paymentId);
+      this.queries.insertAuditLog.run(paymentId, "COMPLETE", "COMPLETE", `Cardano receipt submitted: ${result.txHash}`);
+    } else {
+      this.queries.setReceiptStatus.run("FAILED", paymentId);
+      this.queries.insertAuditLog.run(paymentId, "COMPLETE", "COMPLETE", `Cardano receipt failed: ${result.error}`);
+    }
+  }
+
+  getPendingReceipts(): PaymentRecord[] {
+    return this.queries.getPendingReceipts.all() as PaymentRecord[];
+  }
+
+  getFailedReceipts(): PaymentRecord[] {
+    return this.queries.getFailedReceipts.all() as PaymentRecord[];
+  }
+
+  private isFiatPayment(method: string): boolean {
+    return method === "stripe" || method === "mercadopago";
   }
 
   private updateStatus(paymentId: string, from: string, to: string): void {

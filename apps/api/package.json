@@ -17,7 +17,9 @@
     "mercadopago": "^2.0.15",
     "@adasouls/soulbound-core": "workspace:*",
     "@adasouls/soulbound-sdk": "workspace:*",
+    "@meshsdk/core": "^1.7.0",
     "better-sqlite3": "^11.7.0",
+    "dotenv": "^17.4.1",
     "pino": "^9.6.0"
   },
   "devDependencies": {

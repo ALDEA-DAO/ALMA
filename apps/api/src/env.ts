@@ -32,6 +32,10 @@ export interface Env {
   BLOCKFROST_PROJECT_ID: string;
   BLOCKFROST_URL: string;
 
+  // Backend Cardano wallet (for on-chain fiat receipts)
+  BACKEND_WALLET_SEED: string;
+  PUBLIC_MINT_SCRIPT_ADDRESS: string;
+
   // Database
   DATABASE_PATH: string;
 }
@@ -74,6 +78,9 @@ export function loadEnv(): Env {
 
     BLOCKFROST_PROJECT_ID: optionalEnv("BLOCKFROST_PROJECT_ID", ""),
     BLOCKFROST_URL: optionalEnv("BLOCKFROST_URL", "https://cardano-preprod.blockfrost.io/api/v0"),
+
+    BACKEND_WALLET_SEED: optionalEnv("BACKEND_WALLET_SEED", ""),
+    PUBLIC_MINT_SCRIPT_ADDRESS: optionalEnv("PUBLIC_MINT_SCRIPT_ADDRESS", ""),
 
     DATABASE_PATH: optionalEnv("DATABASE_PATH", "data/alma-api.db"),
   };

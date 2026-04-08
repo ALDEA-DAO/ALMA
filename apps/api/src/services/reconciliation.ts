@@ -28,6 +28,11 @@ export class ReconciliationService {
   }
 
   private async run(): Promise<void> {
+    await this.retryStalePayments();
+    await this.retryFailedReceipts();
+  }
+
+  private async retryStalePayments(): Promise<void> {
     const stale = this.paymentService.getPendingReconciliation();
 
     if (stale.length === 0) return;
@@ -47,6 +52,26 @@ export class ReconciliationService {
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Unknown error";
         this.logger.error(`Reconciliation: error processing payment ${payment.id}: ${msg}`);
+      }
+    }
+  }
+
+  private async retryFailedReceipts(): Promise<void> {
+    const pending = this.paymentService.getPendingReceipts();
+    const failed = this.paymentService.getFailedReceipts();
+    const toRetry = [...pending, ...failed];
+
+    if (toRetry.length === 0) return;
+
+    this.logger.info(`Reconciliation: ${toRetry.length} receipt(s) to retry`);
+
+    for (const payment of toRetry) {
+      try {
+        await this.paymentService.submitReceipt(payment.id);
+        this.logger.info(`Reconciliation: receipt for payment ${payment.id} submitted`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        this.logger.error(`Reconciliation: receipt retry failed for ${payment.id}: ${msg}`);
       }
     }
   }

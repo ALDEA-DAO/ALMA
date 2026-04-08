@@ -27,6 +27,8 @@ export interface PaymentRecord {
   idempotency_key: string;
   error: string | null;
   retries: number;
+  receipt_tx_hash: string | null;
+  receipt_status: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -77,6 +79,8 @@ export function initDatabase(dbPath: string): Database.Database {
       idempotency_key TEXT NOT NULL UNIQUE,
       error TEXT,
       retries INTEGER NOT NULL DEFAULT 0,
+      receipt_tx_hash TEXT,
+      receipt_status TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -95,6 +99,16 @@ export function initDatabase(dbPath: string): Database.Database {
       FOREIGN KEY (payment_id) REFERENCES payments(id)
     );
   `);
+
+  // Migration: add receipt columns if missing (for existing databases)
+  const columns = db.prepare("PRAGMA table_info(payments)").all() as { name: string }[];
+  const columnNames = new Set(columns.map((c) => c.name));
+  if (!columnNames.has("receipt_tx_hash")) {
+    db.exec("ALTER TABLE payments ADD COLUMN receipt_tx_hash TEXT");
+  }
+  if (!columnNames.has("receipt_status")) {
+    db.exec("ALTER TABLE payments ADD COLUMN receipt_status TEXT");
+  }
 
   return db;
 }
@@ -169,6 +183,34 @@ export function createQueries(db: Database.Database) {
     SELECT 1 FROM users WHERE username = ?
   `);
 
+  const setReceiptTxHash = db.prepare(`
+    UPDATE payments SET receipt_tx_hash = ?, receipt_status = 'SUBMITTED', updated_at = datetime('now') WHERE id = ?
+  `);
+
+  const setReceiptStatus = db.prepare(`
+    UPDATE payments SET receipt_status = ?, updated_at = datetime('now') WHERE id = ?
+  `);
+
+  const getPendingReceipts = db.prepare(`
+    SELECT * FROM payments
+    WHERE method IN ('stripe', 'mercadopago')
+    AND status = 'COMPLETE'
+    AND (receipt_status IS NULL OR receipt_status = 'PENDING')
+    AND updated_at < datetime('now', '-1 minutes')
+    ORDER BY created_at ASC
+    LIMIT 20
+  `);
+
+  const getFailedReceipts = db.prepare(`
+    SELECT * FROM payments
+    WHERE method IN ('stripe', 'mercadopago')
+    AND status = 'COMPLETE'
+    AND receipt_status = 'FAILED'
+    AND updated_at < datetime('now', '-10 minutes')
+    ORDER BY created_at ASC
+    LIMIT 10
+  `);
+
   return {
     insertPayment,
     updatePaymentStatus,
@@ -185,5 +227,9 @@ export function createQueries(db: Database.Database) {
     getUserByUsername,
     getUserByWalletHash,
     isUsernameTaken,
+    setReceiptTxHash,
+    setReceiptStatus,
+    getPendingReceipts,
+    getFailedReceipts,
   };
 }

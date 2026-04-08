@@ -7,6 +7,7 @@
 //   Development: npm run dev
 //   Production:  npm run build && npm start
 
+import "dotenv/config";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
@@ -17,6 +18,7 @@ import { PaymentService } from "./services/payment.js";
 import { createMintService } from "./services/mint.js";
 import { UsernameService } from "./services/username.js";
 import { ReconciliationService } from "./services/reconciliation.js";
+import { createCardanoReceiptService } from "./services/cardano-receipt.js";
 import { registerStripeRoutes } from "./routes/stripe.js";
 import { registerMercadoPagoRoutes } from "./routes/mercadopago.js";
 import { registerAldeaTokenRoutes } from "./routes/aldea-token.js";
@@ -79,7 +81,8 @@ async function main() {
   // ─── Services ───────────────────────────────────────────────────────────
 
   const mintService = createMintService(env);
-  const paymentService = new PaymentService(db, queries, mintService);
+  const receiptService = createCardanoReceiptService(env);
+  const paymentService = new PaymentService(db, queries, mintService, receiptService);
   const usernameService = new UsernameService(queries);
   const authService = new AuthService(queries, env);
   const reconciliation = new ReconciliationService(paymentService, app.log);
