@@ -2,21 +2,27 @@
   "network": "testnet",
   "cardano": {
     "network": "preprod",
-    "blockfrostUrl": "https://cardano-preprod.blockfrost.io/api/v0"
+    "blockfrostUrl": "https://cardano-preprod.blockfrost.io/api/v0",
+    "registryScriptHash": "af52c753b50b89629615e6eb1117581d3b893bdab4057fdee3b8e8f8",
+    "registryAddress": "addr_test1wzh4936nk59cjc5kzhnwkyghtqwnhzfmm26q2l77uwuw37qzprtzl",
+    "publicMintScriptHash": "dd65e381096911b54559cb710e237970720f70d3f20709ae7839eaaf",
+    "publicMintAddress": "addr_test1wrwktcupp953rd29t89hzr3r09c8yrms60eqwzdw0qu74tcnkf4ez",
+    "plutusVersion": "v3"
   },
   "midnight": {
     "network": "testnet-02",
-    "nodeUrl": "wss://rpc.testnet-02.midnight.network",
+    "nodeUrl": "ws://localhost:9944",
     "proofServerUrl": "http://localhost:6300"
   },
   "contracts": {
-    "registryPolicyId": "",
+    "registryPolicyId": "af52c753b50b89629615e6eb1117581d3b893bdab4057fdee3b8e8f8",
     "credentialContractAddress": "",
-    "publicMintContractAddress": ""
+    "publicMintContractAddress": "addr_test1wrwktcupp953rd29t89hzr3r09c8yrms60eqwzdw0qu74tcnkf4ez"
   },
   "aldea": {
     "issuerPolicyId": "",
-    "treasuryAddress": "",
-    "mintPriceLovelace": "10000000"
-  }
+    "treasuryAddress": "addr_test1qqf9hwpxxcfsff39l85u4476vjpyfft69xfzkn9t43nwcwcg7mp64jayx46kp52jnhwk3388f2vznpekj8vtu7mxxhzqp7g0sn",
+    "mintPriceLovelace": "35000000"
+  },
+  "deployedAt": "2026-04-08T23:08:52.385Z"
 }

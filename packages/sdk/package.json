@@ -38,7 +38,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@adasouls/soulbound-core": "*"
+    "@adasouls/soulbound-core": "workspace:*"
   },
   "peerDependencies": {
     "@meshsdk/core": ">=1.7.0",
