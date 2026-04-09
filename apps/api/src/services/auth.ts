@@ -1,7 +1,7 @@
 // Auth service — JWT session management for abstract and external wallets
 
 import { randomUUID, createHmac } from "node:crypto";
-import type { createQueries, UserRecord } from "../db/schema.js";
+import type { Queries, UserRecord } from "../db/schema.js";
 import type { Env } from "../env.js";
 
 export interface TokenPayload {
@@ -31,7 +31,7 @@ export class AuthService {
   private refreshTokenTtl = 60 * 60 * 24 * 30; // 30 days
 
   constructor(
-    private queries: ReturnType<typeof createQueries>,
+    private queries: Queries,
     env: Env,
   ) {
     // Use a deterministic secret in development, require a real one in production
@@ -103,11 +103,11 @@ export class AuthService {
   /**
    * Refresh an access token using a valid refresh token.
    */
-  refreshSession(refreshToken: string): AuthTokens | null {
+  async refreshSession(refreshToken: string): Promise<AuthTokens | null> {
     const payload = this.verifyToken(refreshToken);
     if (!payload) return null;
 
-    const user = this.queries.getUserByUsername.get(payload.username) as UserRecord | undefined;
+    const user = await this.queries.getUserByUsername(payload.username);
     if (!user) return null;
 
     return this.createSession(user);
@@ -116,12 +116,12 @@ export class AuthService {
   /**
    * Get user from an authorization header value.
    */
-  getUserFromHeader(authHeader: string | undefined): UserRecord | null {
+  async getUserFromHeader(authHeader: string | undefined): Promise<UserRecord | null> {
     if (!authHeader?.startsWith("Bearer ")) return null;
     const token = authHeader.slice(7);
     const payload = this.verifyToken(token);
     if (!payload) return null;
-    return this.queries.getUserByUsername.get(payload.username) as UserRecord ?? null;
+    return (await this.queries.getUserByUsername(payload.username)) ?? null;
   }
 
   private signToken(payload: TokenPayload): string {

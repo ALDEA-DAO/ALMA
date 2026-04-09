@@ -40,12 +40,12 @@ export function registerAuthRoutes(
       const normalizedUsername = username.toLowerCase();
 
       // Check if user already exists by wallet hash
-      let user = usernameService.getByWalletHash(walletHash);
+      let user = await usernameService.getByWalletHash(walletHash);
 
       if (!user) {
         // New user — register
         try {
-          user = usernameService.register(normalizedUsername, walletHash, email, authProvider);
+          user = await usernameService.register(normalizedUsername, walletHash, email, authProvider);
         } catch (err) {
           const msg = err instanceof Error ? err.message : "Registration failed";
           return reply.status(400).send({ error: msg });
@@ -84,7 +84,7 @@ export function registerAuthRoutes(
       },
     },
     handler: async (request, reply) => {
-      const tokens = authService.refreshSession(request.body.refreshToken);
+      const tokens = await authService.refreshSession(request.body.refreshToken);
       if (!tokens) {
         return reply.status(401).send({ error: "Invalid or expired refresh token" });
       }
@@ -96,7 +96,7 @@ export function registerAuthRoutes(
 
   app.get("/auth/me", {
     handler: async (request, reply) => {
-      const user = authService.getUserFromHeader(request.headers.authorization);
+      const user = await authService.getUserFromHeader(request.headers.authorization);
       if (!user) {
         return reply.status(401).send({ error: "Not authenticated" });
       }
@@ -117,7 +117,7 @@ export function registerAuthRoutes(
 
   app.get("/auth/verify", {
     handler: async (request, reply) => {
-      const user = authService.getUserFromHeader(request.headers.authorization);
+      const user = await authService.getUserFromHeader(request.headers.authorization);
       return reply.send({ authenticated: user !== null });
     },
   });

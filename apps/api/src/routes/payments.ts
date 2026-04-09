@@ -13,7 +13,7 @@ export function registerPaymentRoutes(
     Params: { paymentId: string };
   }>("/payments/:paymentId", {
     handler: async (request, reply) => {
-      const payment = paymentService.getPayment(request.params.paymentId);
+      const payment = await paymentService.getPayment(request.params.paymentId);
       if (!payment) {
         return reply.status(404).send({ error: "Payment not found" });
       }
@@ -33,7 +33,7 @@ export function registerPaymentRoutes(
     Params: { walletHash: string };
   }>("/payments/wallet/:walletHash", {
     handler: async (request, reply) => {
-      const payments = paymentService.getPaymentsByWallet(request.params.walletHash);
+      const payments = await paymentService.getPaymentsByWallet(request.params.walletHash);
       return reply.send(
         payments.map((p) => ({
           id: p.id,

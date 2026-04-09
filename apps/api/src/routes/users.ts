@@ -20,7 +20,7 @@ export function registerUserRoutes(
         return reply.send({ available: false, error: validation.error });
       }
 
-      const available = usernameService.isAvailable(username);
+      const available = await usernameService.isAvailable(username);
       return reply.send({ available, formatted: `${username}@aldea.world` });
     },
   });
@@ -46,7 +46,7 @@ export function registerUserRoutes(
       const { username, walletHash, email, authProvider } = request.body;
 
       try {
-        const user = usernameService.register(
+        const user = await usernameService.register(
           username.toLowerCase(),
           walletHash,
           email,
@@ -71,7 +71,7 @@ export function registerUserRoutes(
     Params: { username: string };
   }>("/users/:username", {
     handler: async (request, reply) => {
-      const user = usernameService.getByUsername(request.params.username.toLowerCase());
+      const user = await usernameService.getByUsername(request.params.username.toLowerCase());
       if (!user) {
         return reply.status(404).send({ error: "User not found" });
       }
@@ -89,7 +89,7 @@ export function registerUserRoutes(
     Params: { walletHash: string };
   }>("/users/wallet/:walletHash", {
     handler: async (request, reply) => {
-      const user = usernameService.getByWalletHash(request.params.walletHash);
+      const user = await usernameService.getByWalletHash(request.params.walletHash);
       if (!user) {
         return reply.status(404).send({ error: "User not found" });
       }

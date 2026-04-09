@@ -1,12 +1,12 @@
 // Username service — manages unique lowercase usernames
 
 import { randomUUID } from "node:crypto";
-import type { createQueries, UserRecord } from "../db/schema.js";
+import type { Queries, UserRecord } from "../db/schema.js";
 
 const USERNAME_REGEX = /^[a-z][a-z0-9\-]{2,29}$/;
 
 export class UsernameService {
-  constructor(private queries: ReturnType<typeof createQueries>) {}
+  constructor(private queries: Queries) {}
 
   validate(username: string): { valid: boolean; error?: string } {
     const normalized = username.toLowerCase().trim();
@@ -25,30 +25,30 @@ export class UsernameService {
     return { valid: true };
   }
 
-  isAvailable(username: string): boolean {
-    return !this.queries.isUsernameTaken.get(username);
+  async isAvailable(username: string): Promise<boolean> {
+    return !(await this.queries.isUsernameTaken(username));
   }
 
-  register(username: string, walletHash: string, email?: string, authProvider = "wallet"): UserRecord {
+  async register(username: string, walletHash: string, email?: string, authProvider = "wallet"): Promise<UserRecord> {
     const validation = this.validate(username);
     if (!validation.valid) {
       throw new Error(validation.error);
     }
 
-    if (!this.isAvailable(username)) {
+    if (!(await this.isAvailable(username))) {
       throw new Error(`Username "${username}" is already taken`);
     }
 
     const id = randomUUID();
-    this.queries.insertUser.run(id, username, email ?? null, walletHash, authProvider);
-    return this.queries.getUserByUsername.get(username) as UserRecord;
+    await this.queries.insertUser(id, username, email ?? null, walletHash, authProvider);
+    return (await this.queries.getUserByUsername(username))!;
   }
 
-  getByUsername(username: string): UserRecord | undefined {
-    return this.queries.getUserByUsername.get(username) as UserRecord | undefined;
+  async getByUsername(username: string): Promise<UserRecord | undefined> {
+    return this.queries.getUserByUsername(username);
   }
 
-  getByWalletHash(walletHash: string): UserRecord | undefined {
-    return this.queries.getUserByWalletHash.get(walletHash) as UserRecord | undefined;
+  async getByWalletHash(walletHash: string): Promise<UserRecord | undefined> {
+    return this.queries.getUserByWalletHash(walletHash);
   }
 }

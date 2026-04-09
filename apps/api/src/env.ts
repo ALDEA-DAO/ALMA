@@ -36,8 +36,8 @@ export interface Env {
   BACKEND_WALLET_SEED: string;
   PUBLIC_MINT_SCRIPT_ADDRESS: string;
 
-  // Database
-  DATABASE_PATH: string;
+  // Database (Neon Postgres)
+  DATABASE_URL: string;
 }
 
 function requireEnv(name: string): string {
@@ -82,6 +82,6 @@ export function loadEnv(): Env {
     BACKEND_WALLET_SEED: optionalEnv("BACKEND_WALLET_SEED", ""),
     PUBLIC_MINT_SCRIPT_ADDRESS: optionalEnv("PUBLIC_MINT_SCRIPT_ADDRESS", ""),
 
-    DATABASE_PATH: optionalEnv("DATABASE_PATH", "data/alma-api.db"),
+    DATABASE_URL: optionalEnv("DATABASE_URL", ""),
   };
 }

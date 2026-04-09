@@ -18,13 +18,12 @@
     "@adasouls/soulbound-core": "workspace:*",
     "@adasouls/soulbound-sdk": "workspace:*",
     "@meshsdk/core": "^1.7.0",
-    "better-sqlite3": "^11.7.0",
+    "@neondatabase/serverless": "^0.10.0",
     "dotenv": "^17.4.1",
     "pino": "^9.6.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "@types/better-sqlite3": "^7.6.12",
     "typescript": "^5.7.2",
     "tsx": "^4.19.0"
   }

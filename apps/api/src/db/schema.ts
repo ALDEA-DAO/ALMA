@@ -1,8 +1,6 @@
-// SQLite database schema and queries for payment tracking and reconciliation
+// Neon Postgres database schema and queries for payment tracking and reconciliation
 
-import Database from "better-sqlite3";
-import { mkdirSync, existsSync } from "node:fs";
-import { dirname } from "node:path";
+import { Pool, neonConfig } from "@neondatabase/serverless";
 
 export type PaymentStatus =
   | "PENDING"
@@ -42,28 +40,21 @@ export interface UserRecord {
   created_at: string;
 }
 
-export function initDatabase(dbPath: string): Database.Database {
-  const dir = dirname(dbPath);
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
-  }
+export function createPool(databaseUrl: string): Pool {
+  return new Pool({ connectionString: databaseUrl });
+}
 
-  const db = new Database(dbPath);
-
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
-
-  db.exec(`
+export async function initDatabase(pool: Pool): Promise<void> {
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       username TEXT NOT NULL UNIQUE,
       email TEXT,
       wallet_hash TEXT NOT NULL,
       auth_provider TEXT NOT NULL DEFAULT 'wallet',
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username);
     CREATE INDEX IF NOT EXISTS idx_users_wallet_hash ON users(wallet_hash);
 
     CREATE TABLE IF NOT EXISTS payments (
@@ -81,8 +72,8 @@ export function initDatabase(dbPath: string): Database.Database {
       retries INTEGER NOT NULL DEFAULT 0,
       receipt_tx_hash TEXT,
       receipt_status TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
     CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
@@ -90,146 +81,176 @@ export function initDatabase(dbPath: string): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_payments_external_id ON payments(external_id);
 
     CREATE TABLE IF NOT EXISTS audit_log (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      payment_id TEXT NOT NULL,
+      id SERIAL PRIMARY KEY,
+      payment_id TEXT NOT NULL REFERENCES payments(id),
       from_status TEXT,
       to_status TEXT NOT NULL,
       detail TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (payment_id) REFERENCES payments(id)
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
-
-  // Migration: add receipt columns if missing (for existing databases)
-  const columns = db.prepare("PRAGMA table_info(payments)").all() as { name: string }[];
-  const columnNames = new Set(columns.map((c) => c.name));
-  if (!columnNames.has("receipt_tx_hash")) {
-    db.exec("ALTER TABLE payments ADD COLUMN receipt_tx_hash TEXT");
-  }
-  if (!columnNames.has("receipt_status")) {
-    db.exec("ALTER TABLE payments ADD COLUMN receipt_status TEXT");
-  }
-
-  return db;
 }
 
-// ─── Prepared statements factory ──────────────────────────────────────────
+// ─── Query functions factory ─────────────────────────────────────────────────
 
-export function createQueries(db: Database.Database) {
-  const insertPayment = db.prepare(`
-    INSERT INTO payments (id, method, external_id, wallet_hash, username, amount, currency, status, idempotency_key)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)
-  `);
-
-  const updatePaymentStatus = db.prepare(`
-    UPDATE payments SET status = ?, updated_at = datetime('now') WHERE id = ?
-  `);
-
-  const setCredentialId = db.prepare(`
-    UPDATE payments SET credential_id = ?, status = 'COMPLETE', updated_at = datetime('now') WHERE id = ?
-  `);
-
-  const setError = db.prepare(`
-    UPDATE payments SET error = ?, retries = retries + 1, updated_at = datetime('now') WHERE id = ?
-  `);
-
-  const markFailed = db.prepare(`
-    UPDATE payments SET status = 'FAILED', error = ?, updated_at = datetime('now') WHERE id = ?
-  `);
-
-  const getPaymentById = db.prepare(`
-    SELECT * FROM payments WHERE id = ?
-  `);
-
-  const getPaymentByExternalId = db.prepare(`
-    SELECT * FROM payments WHERE external_id = ? AND method = ?
-  `);
-
-  const getPaymentByIdempotencyKey = db.prepare(`
-    SELECT * FROM payments WHERE idempotency_key = ?
-  `);
-
-  const getPendingReconciliation = db.prepare(`
-    SELECT * FROM payments
-    WHERE status IN ('CONFIRMED', 'MINT_INITIATED')
-    AND updated_at < datetime('now', '-5 minutes')
-    ORDER BY created_at ASC
-    LIMIT 50
-  `);
-
-  const getPaymentsByWallet = db.prepare(`
-    SELECT * FROM payments WHERE wallet_hash = ? ORDER BY created_at DESC
-  `);
-
-  const insertAuditLog = db.prepare(`
-    INSERT INTO audit_log (payment_id, from_status, to_status, detail)
-    VALUES (?, ?, ?, ?)
-  `);
-
-  const insertUser = db.prepare(`
-    INSERT INTO users (id, username, email, wallet_hash, auth_provider)
-    VALUES (?, ?, ?, ?, ?)
-  `);
-
-  const getUserByUsername = db.prepare(`
-    SELECT * FROM users WHERE username = ?
-  `);
-
-  const getUserByWalletHash = db.prepare(`
-    SELECT * FROM users WHERE wallet_hash = ?
-  `);
-
-  const isUsernameTaken = db.prepare(`
-    SELECT 1 FROM users WHERE username = ?
-  `);
-
-  const setReceiptTxHash = db.prepare(`
-    UPDATE payments SET receipt_tx_hash = ?, receipt_status = 'SUBMITTED', updated_at = datetime('now') WHERE id = ?
-  `);
-
-  const setReceiptStatus = db.prepare(`
-    UPDATE payments SET receipt_status = ?, updated_at = datetime('now') WHERE id = ?
-  `);
-
-  const getPendingReceipts = db.prepare(`
-    SELECT * FROM payments
-    WHERE method IN ('stripe', 'mercadopago')
-    AND status = 'COMPLETE'
-    AND (receipt_status IS NULL OR receipt_status = 'PENDING')
-    AND updated_at < datetime('now', '-1 minutes')
-    ORDER BY created_at ASC
-    LIMIT 20
-  `);
-
-  const getFailedReceipts = db.prepare(`
-    SELECT * FROM payments
-    WHERE method IN ('stripe', 'mercadopago')
-    AND status = 'COMPLETE'
-    AND receipt_status = 'FAILED'
-    AND updated_at < datetime('now', '-10 minutes')
-    ORDER BY created_at ASC
-    LIMIT 10
-  `);
-
+export function createQueries(pool: Pool) {
   return {
-    insertPayment,
-    updatePaymentStatus,
-    setCredentialId,
-    setError,
-    markFailed,
-    getPaymentById,
-    getPaymentByExternalId,
-    getPaymentByIdempotencyKey,
-    getPendingReconciliation,
-    getPaymentsByWallet,
-    insertAuditLog,
-    insertUser,
-    getUserByUsername,
-    getUserByWalletHash,
-    isUsernameTaken,
-    setReceiptTxHash,
-    setReceiptStatus,
-    getPendingReceipts,
-    getFailedReceipts,
+    // ─── Payments ──────────────────────────────────────────────────────
+
+    async insertPayment(
+      id: string, method: string, externalId: string, walletHash: string,
+      username: string | null, amount: string, currency: string, idempotencyKey: string,
+    ) {
+      await pool.query(
+        `INSERT INTO payments (id, method, external_id, wallet_hash, username, amount, currency, status, idempotency_key)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING', $8)`,
+        [id, method, externalId, walletHash, username, amount, currency, idempotencyKey],
+      );
+    },
+
+    async updatePaymentStatus(status: string, id: string) {
+      await pool.query(
+        `UPDATE payments SET status = $1, updated_at = NOW() WHERE id = $2`,
+        [status, id],
+      );
+    },
+
+    async setCredentialId(credentialId: string, id: string) {
+      await pool.query(
+        `UPDATE payments SET credential_id = $1, status = 'COMPLETE', updated_at = NOW() WHERE id = $2`,
+        [credentialId, id],
+      );
+    },
+
+    async setError(error: string, id: string) {
+      await pool.query(
+        `UPDATE payments SET error = $1, retries = retries + 1, updated_at = NOW() WHERE id = $2`,
+        [error, id],
+      );
+    },
+
+    async markFailed(error: string, id: string) {
+      await pool.query(
+        `UPDATE payments SET status = 'FAILED', error = $1, updated_at = NOW() WHERE id = $2`,
+        [error, id],
+      );
+    },
+
+    async getPaymentById(id: string): Promise<PaymentRecord | undefined> {
+      const { rows } = await pool.query(`SELECT * FROM payments WHERE id = $1`, [id]);
+      return rows[0] as PaymentRecord | undefined;
+    },
+
+    async getPaymentByExternalId(externalId: string, method: string): Promise<PaymentRecord | undefined> {
+      const { rows } = await pool.query(
+        `SELECT * FROM payments WHERE external_id = $1 AND method = $2`,
+        [externalId, method],
+      );
+      return rows[0] as PaymentRecord | undefined;
+    },
+
+    async getPaymentByIdempotencyKey(key: string): Promise<PaymentRecord | undefined> {
+      const { rows } = await pool.query(
+        `SELECT * FROM payments WHERE idempotency_key = $1`,
+        [key],
+      );
+      return rows[0] as PaymentRecord | undefined;
+    },
+
+    async getPendingReconciliation(): Promise<PaymentRecord[]> {
+      const { rows } = await pool.query(
+        `SELECT * FROM payments
+         WHERE status IN ('CONFIRMED', 'MINT_INITIATED')
+         AND updated_at < NOW() - INTERVAL '5 minutes'
+         ORDER BY created_at ASC
+         LIMIT 50`,
+      );
+      return rows as PaymentRecord[];
+    },
+
+    async getPaymentsByWallet(walletHash: string): Promise<PaymentRecord[]> {
+      const { rows } = await pool.query(
+        `SELECT * FROM payments WHERE wallet_hash = $1 ORDER BY created_at DESC`,
+        [walletHash],
+      );
+      return rows as PaymentRecord[];
+    },
+
+    // ─── Receipts ─────────────────────────────────────────────────────
+
+    async setReceiptTxHash(txHash: string, id: string) {
+      await pool.query(
+        `UPDATE payments SET receipt_tx_hash = $1, receipt_status = 'SUBMITTED', updated_at = NOW() WHERE id = $2`,
+        [txHash, id],
+      );
+    },
+
+    async setReceiptStatus(status: string, id: string) {
+      await pool.query(
+        `UPDATE payments SET receipt_status = $1, updated_at = NOW() WHERE id = $2`,
+        [status, id],
+      );
+    },
+
+    async getPendingReceipts(): Promise<PaymentRecord[]> {
+      const { rows } = await pool.query(
+        `SELECT * FROM payments
+         WHERE method IN ('stripe', 'mercadopago')
+         AND status = 'COMPLETE'
+         AND (receipt_status IS NULL OR receipt_status = 'PENDING')
+         AND updated_at < NOW() - INTERVAL '1 minutes'
+         ORDER BY created_at ASC
+         LIMIT 20`,
+      );
+      return rows as PaymentRecord[];
+    },
+
+    async getFailedReceipts(): Promise<PaymentRecord[]> {
+      const { rows } = await pool.query(
+        `SELECT * FROM payments
+         WHERE method IN ('stripe', 'mercadopago')
+         AND status = 'COMPLETE'
+         AND receipt_status = 'FAILED'
+         AND updated_at < NOW() - INTERVAL '10 minutes'
+         ORDER BY created_at ASC
+         LIMIT 10`,
+      );
+      return rows as PaymentRecord[];
+    },
+
+    // ─── Audit log ────────────────────────────────────────────────────
+
+    async insertAuditLog(paymentId: string, fromStatus: string | null, toStatus: string, detail: string | null) {
+      await pool.query(
+        `INSERT INTO audit_log (payment_id, from_status, to_status, detail) VALUES ($1, $2, $3, $4)`,
+        [paymentId, fromStatus, toStatus, detail],
+      );
+    },
+
+    // ─── Users ────────────────────────────────────────────────────────
+
+    async insertUser(id: string, username: string, email: string | null, walletHash: string, authProvider: string) {
+      await pool.query(
+        `INSERT INTO users (id, username, email, wallet_hash, auth_provider) VALUES ($1, $2, $3, $4, $5)`,
+        [id, username, email, walletHash, authProvider],
+      );
+    },
+
+    async getUserByUsername(username: string): Promise<UserRecord | undefined> {
+      const { rows } = await pool.query(`SELECT * FROM users WHERE username = $1`, [username]);
+      return rows[0] as UserRecord | undefined;
+    },
+
+    async getUserByWalletHash(walletHash: string): Promise<UserRecord | undefined> {
+      const { rows } = await pool.query(`SELECT * FROM users WHERE wallet_hash = $1`, [walletHash]);
+      return rows[0] as UserRecord | undefined;
+    },
+
+    async isUsernameTaken(username: string): Promise<boolean> {
+      const { rows } = await pool.query(`SELECT 1 FROM users WHERE username = $1`, [username]);
+      return rows.length > 0;
+    },
   };
 }
+
+export type Queries = ReturnType<typeof createQueries>;

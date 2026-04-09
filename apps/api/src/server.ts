@@ -13,7 +13,7 @@ import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 
 import { loadEnv } from "./env.js";
-import { initDatabase, createQueries } from "./db/schema.js";
+import { createPool, initDatabase, createQueries } from "./db/schema.js";
 import { PaymentService } from "./services/payment.js";
 import { createMintService } from "./services/mint.js";
 import { UsernameService } from "./services/username.js";
@@ -75,14 +75,16 @@ async function main() {
 
   // ─── Database ───────────────────────────────────────────────────────────
 
-  const db = initDatabase(env.DATABASE_PATH);
-  const queries = createQueries(db);
+  const pool = createPool(env.DATABASE_URL);
+  await initDatabase(pool);
+
+  const queries = createQueries(pool);
 
   // ─── Services ───────────────────────────────────────────────────────────
 
   const mintService = createMintService(env);
   const receiptService = createCardanoReceiptService(env);
-  const paymentService = new PaymentService(db, queries, mintService, receiptService);
+  const paymentService = new PaymentService(queries, mintService, receiptService);
   const usernameService = new UsernameService(queries);
   const authService = new AuthService(queries, env);
   const reconciliation = new ReconciliationService(paymentService, app.log);
@@ -105,9 +107,9 @@ async function main() {
 
   // ─── Lifecycle ──────────────────────────────────────────────────────────
 
-  app.addHook("onClose", () => {
+  app.addHook("onClose", async () => {
     reconciliation.stop();
-    db.close();
+    await pool.end();
   });
 
   // ─── Start ──────────────────────────────────────────────────────────────

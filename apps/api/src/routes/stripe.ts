@@ -60,7 +60,7 @@ export function registerStripeRoutes(
       });
 
       // Create payment record
-      paymentService.createPayment({
+      await paymentService.createPayment({
         method: "stripe",
         externalId: session.id,
         walletHash,

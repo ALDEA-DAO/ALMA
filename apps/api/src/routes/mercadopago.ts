@@ -64,7 +64,7 @@ export function registerMercadoPagoRoutes(
       });
 
       // Create payment record
-      paymentService.createPayment({
+      await paymentService.createPayment({
         method: "mercadopago",
         externalId: preference.id!,
         walletHash,

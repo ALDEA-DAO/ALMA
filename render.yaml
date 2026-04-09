@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: alma-api
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: pnpm install && cd apps/api && pnpm build
+    startCommand: cd apps/api && node dist/server.js
+    envVars:
+      - key: NODE_ENV
+        value: testnet
+      - key: PORT
+        value: "3100"
+      - key: DATABASE_URL
+        sync: false
+      - key: BLOCKFROST_PROJECT_ID
+        sync: false
+      - key: BLOCKFROST_URL
+        value: https://cardano-preprod.blockfrost.io/api/v0
+      - key: BACKEND_WALLET_SEED
+        sync: false
+      - key: PUBLIC_MINT_SCRIPT_ADDRESS
+        sync: false
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: ALDEA_TREASURY_ADDRESS
+        sync: false
+      - key: MINT_PRICE_LOVELACE
+        value: "35000000"
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: MP_ACCESS_TOKEN
+        sync: false
+      - key: MP_WEBHOOK_SECRET
+        sync: false

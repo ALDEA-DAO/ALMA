@@ -52,7 +52,7 @@ export function registerAldeaTokenRoutes(
       }
 
       // Create payment record and immediately confirm + mint
-      const payment = paymentService.createPayment({
+      const payment = await paymentService.createPayment({
         method: "aldea_token",
         externalId: txHash,
         walletHash,

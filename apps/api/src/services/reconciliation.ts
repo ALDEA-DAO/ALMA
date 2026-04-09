@@ -33,7 +33,7 @@ export class ReconciliationService {
   }
 
   private async retryStalePayments(): Promise<void> {
-    const stale = this.paymentService.getPendingReconciliation();
+    const stale = await this.paymentService.getPendingReconciliation();
 
     if (stale.length === 0) return;
 
@@ -57,8 +57,8 @@ export class ReconciliationService {
   }
 
   private async retryFailedReceipts(): Promise<void> {
-    const pending = this.paymentService.getPendingReceipts();
-    const failed = this.paymentService.getFailedReceipts();
+    const pending = await this.paymentService.getPendingReceipts();
+    const failed = await this.paymentService.getFailedReceipts();
     const toRetry = [...pending, ...failed];
 
     if (toRetry.length === 0) return;
