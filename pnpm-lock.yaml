@@ -136,10 +136,16 @@ importers:
       stripe:
         specifier: ^17.5.0
         version: 17.7.0
+      ws:
+        specifier: ^8.20.0
+        version: 8.20.0(bufferutil@4.1.0)(utf-8-validate@6.0.6)
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.17
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
       tsx:
         specifier: ^4.19.0
         version: 4.21.0
@@ -2092,6 +2098,9 @@ packages:
 
   '@types/ssh2@1.15.5':
     resolution: {integrity: sha512-N1ASjp/nXH3ovBHddRJpli4ozpk6UdDYIX4RJWFa9L1YKnzdhTlVmiGHm4DZnj/jLbqZpes4aeR30EFGQtvhQQ==}
+
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
   '@utxorpc/sdk@0.6.2':
     resolution: {integrity: sha512-2duxfbH8B7DX3ync8U7BUYIi6lzerYwb8lMpW6Ax1fv3zqmJE39lGsBRVozJU1X3ITSB526ODkhgUo8DHRLvtQ==}
@@ -6865,6 +6874,10 @@ snapshots:
   '@types/ssh2@1.15.5':
     dependencies:
       '@types/node': 18.19.130
+
+  '@types/ws@8.18.1':
+    dependencies:
+      '@types/node': 22.19.17
 
   '@utxorpc/sdk@0.6.2(@bufbuild/protobuf@1.10.1)':
     dependencies:

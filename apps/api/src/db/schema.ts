@@ -1,6 +1,9 @@
 // Neon Postgres database schema and queries for payment tracking and reconciliation
 
 import { Pool, neonConfig } from "@neondatabase/serverless";
+import ws from "ws";
+
+neonConfig.webSocketConstructor = ws;
 
 export type PaymentStatus =
   | "PENDING"
