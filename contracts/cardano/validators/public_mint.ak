@@ -4,7 +4,7 @@
 // public ALMA credential minting. Responsibilities:
 //   1. Validate that the UTxO contains the minimum configured ADA or ALDEA token amount
 //   2. Send funds to ALDEA treasury wallet
-//   3. Anti-double-mint — one wallet can only mint one credential
+//   3. Anti-double-mint — one stake key can only mint one credential
 //   4. Emit a receipt that the SDK PublicMintListener detects to call issuer.emit()
 //   5. Preserve the config UTxO as a continuing output
 //
@@ -16,8 +16,8 @@
 //   - Supports two payment paths: ADA (Mint) and ALDEA token (MintWithToken)
 //
 // Security (audit fixes 2026-04-04):
-//   - C-01: Anti-double-mint enforced via reference input scan
-//   - C-02: Receipt output validated as proper MintReceipt with correct minter_vkh
+//   - C-01: Anti-double-mint enforced via stake key hash in reference input scan
+//   - C-02: Receipt output validated as proper MintReceipt with correct stake_key_hash
 //   - H-02: UpdateConfig validates continuing output (min price, preserved admin)
 //   - H-03: WithdrawToTreasury ensures all outputs go to treasury
 //   - H-04: Mint preserves config UTxO as continuing output
@@ -34,10 +34,10 @@ use soulbound/public_mint_types.{
 }
 use soulbound/validation.{signed_by}
 use aiken/collection/list
-use aiken/crypto.{VerificationKeyHash}
+use aiken/crypto.{VerificationKeyHash, sha2_256}
 use cardano/transaction.{Transaction, Output, OutputReference}
 use cardano/assets.{lovelace_of, quantity_of}
-use cardano/address.{VerificationKey}
+use cardano/address.{VerificationKey, Inline}
 
 // Minimum mint price: 1 ADA (prevents accidental or malicious zero-price config)
 const min_allowed_price_lovelace: Int = 1_000_000
@@ -105,26 +105,30 @@ validator public_mint {
 /// Requirements:
 ///   1. Minting must be active (is_active == True)
 ///   2. The minter must sign the transaction
-///   3. Payment to treasury must be >= mint_price_lovelace
-///   4. Anti-double-mint: minter must not have an existing receipt (C-01)
-///   5. A valid MintReceipt output with correct minter_vkh must be created (C-02)
-///   6. Config UTxO must be preserved as continuing output (H-04)
+///   3. A stake key must be present in one of the transaction inputs
+///   4. Payment to treasury must be >= mint_price_lovelace
+///   5. Anti-double-mint: stake key must not have an existing receipt (C-01)
+///   6. A valid MintReceipt output with correct stake_key_hash must be created (C-02)
+///   7. Config UTxO must be preserved as continuing output (H-04)
 fn validate_mint_ada(config: MintConfig, own_utxo: OutputReference, tx: Transaction) -> Bool {
   // Must be enabled
   expect config.is_active
 
-  // Must have at least one signer (the minter)
-  expect [minter_vkh, ..] = tx.extra_signatories
+  // Must have at least one signer (the minter's payment key)
+  expect [_minter_vkh, ..] = tx.extra_signatories
+
+  // Extract stake key hash from tx inputs — required for anti-double-mint
+  expect Some(stake_key_hash) = extract_hashed_stake_key(tx)
 
   // Treasury must receive at least the mint price in ADA
   let treasury_paid =
     check_treasury_ada_payment(config.treasury_vkh, config.mint_price_lovelace, tx)
 
-  // [C-01] Anti-double-mint: no existing receipt for this minter
-  let no_duplicate = no_existing_receipt(minter_vkh, tx)
+  // [C-01] Anti-double-mint: no existing receipt for this stake key
+  let no_duplicate = no_existing_receipt(stake_key_hash, tx)
 
-  // [C-02] Valid MintReceipt output with correct minter_vkh
-  let has_receipt = check_valid_receipt_output(minter_vkh, tx)
+  // [C-02] Valid MintReceipt output with correct stake_key_hash
+  let has_receipt = check_valid_receipt_output(stake_key_hash, tx)
 
   // [H-04] Config UTxO preserved as continuing output
   let config_preserved = has_continuing_config(config, own_utxo, tx)
@@ -143,7 +147,10 @@ fn validate_mint_token(config: MintConfig, own_utxo: OutputReference, tx: Transa
   expect config.mint_price_aldea_token > 0
 
   // Must have at least one signer
-  expect [minter_vkh, ..] = tx.extra_signatories
+  expect [_minter_vkh, ..] = tx.extra_signatories
+
+  // Extract stake key hash from tx inputs
+  expect Some(stake_key_hash) = extract_hashed_stake_key(tx)
 
   // Treasury must receive enough ALDEA tokens
   let treasury_paid =
@@ -155,11 +162,11 @@ fn validate_mint_token(config: MintConfig, own_utxo: OutputReference, tx: Transa
       tx,
     )
 
-  // [C-01] Anti-double-mint
-  let no_duplicate = no_existing_receipt(minter_vkh, tx)
+  // [C-01] Anti-double-mint by stake key
+  let no_duplicate = no_existing_receipt(stake_key_hash, tx)
 
-  // [C-02] Valid receipt output
-  let has_receipt = check_valid_receipt_output(minter_vkh, tx)
+  // [C-02] Valid receipt output with stake key
+  let has_receipt = check_valid_receipt_output(stake_key_hash, tx)
 
   // [H-04] Config preserved
   let config_preserved = has_continuing_config(config, own_utxo, tx)
@@ -208,42 +215,61 @@ fn check_treasury_token_payment(
   )
 }
 
+// ─── Stake Key Extraction ───────────────────────────────────────────────────
+
+/// Extract and hash the stake key from the first transaction input that has one.
+/// Returns SHA-256(stake_key) so the raw stake key is not stored in the receipt.
+/// Returns None if no input carries a stake credential (e.g. enterprise address).
+fn extract_hashed_stake_key(tx: Transaction) -> Option<ByteArray> {
+  let stake_keys =
+    list.filter_map(
+      tx.inputs,
+      fn(input) {
+        when input.output.address.stake_credential is {
+          Some(Inline(VerificationKey(hash))) -> Some(sha2_256(hash))
+          _ -> None
+        }
+      },
+    )
+  list.head(stake_keys)
+}
+
 // ─── Anti-Double-Mint (C-01) ────────────────────────────────────────────────
 
-/// [C-01] Check that no existing MintReceipt for this minter exists in
+/// [C-01] Check that no existing MintReceipt for this stake key exists in
 /// the transaction's reference inputs. The frontend must include all
 /// existing receipt UTxOs at the script address as reference inputs
 /// so the contract can scan them for duplicates.
-fn no_existing_receipt(minter_vkh: VerificationKeyHash, tx: Transaction) -> Bool {
+fn no_existing_receipt(stake_key_hash: ByteArray, tx: Transaction) -> Bool {
   !list.any(
     tx.reference_inputs,
     fn(ref_input) {
       when ref_input.output.datum is {
         transaction.InlineDatum(raw_datum) ->
-          is_receipt_for_minter(raw_datum, minter_vkh)
+          is_receipt_for_stake_key(raw_datum, stake_key_hash)
         _ -> False
       }
     },
   )
 }
 
-/// Try to parse a datum as MintReceipt and check if it belongs to this minter.
-fn is_receipt_for_minter(raw_datum: Data, minter_vkh: VerificationKeyHash) -> Bool {
+/// Try to parse a datum as MintReceipt and check if it belongs to this stake key.
+fn is_receipt_for_stake_key(raw_datum: Data, stake_key_hash: ByteArray) -> Bool {
   expect receipt: MintReceipt = raw_datum
-  receipt.minter_vkh == minter_vkh
+  receipt.stake_key_hash == stake_key_hash
 }
 
 // ─── Receipt Output Validation (C-02) ───────────────────────────────────────
 
 /// [C-02] Verify that at least one output contains a properly formed
-/// MintReceipt datum with the correct minter_vkh matching the tx signer.
-fn check_valid_receipt_output(minter_vkh: VerificationKeyHash, tx: Transaction) -> Bool {
+/// MintReceipt datum with the correct stake_key_hash.
+fn check_valid_receipt_output(stake_key_hash: ByteArray, tx: Transaction) -> Bool {
   list.any(
     tx.outputs,
     fn(output: Output) {
       when output.datum is {
         transaction.InlineDatum(raw_datum) ->
-          is_receipt_for_minter(raw_datum, minter_vkh)
+          is_receipt_for_stake_key(raw_datum, stake_key_hash)
         _ -> False
       }
     },

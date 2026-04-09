@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import type {
   SoulboundCredentialId,
   SoulboundEmitInput,
@@ -25,6 +26,9 @@ export class SoulboundIssuer {
   async emit(input: SoulboundEmitInput): Promise<SoulboundCredentialId> {
     const nowSecs = Math.floor(Date.now() / 1000);
     const walletHash = this.provider.hashWalletAddress(input.subject.walletAddress);
+    const usernameHash = input.subject.username
+      ? hashUsername(input.subject.username)
+      : undefined;
 
     const { id } = await this.provider.issue({
       schemaId: input.schema,
@@ -32,6 +36,7 @@ export class SoulboundIssuer {
       issuer: this.organization,
       subject: {
         walletHash,
+        ...(usernameHash !== undefined && { usernameHash }),
         ...(input.subject.memberId !== undefined && { memberId: input.subject.memberId }),
         metadata: buildMetadata(input),
       },
@@ -76,6 +81,10 @@ export class SoulboundIssuer {
   }
 }
 
+function hashUsername(username: string): string {
+  return createHash("sha256").update(username.toLowerCase()).digest("hex");
+}
+
 function buildMetadata(input: SoulboundEmitInput): Record<string, unknown> {
   const meta: Record<string, unknown> = {};
   const s = input.subject;
@@ -95,8 +104,8 @@ function buildMetadata(input: SoulboundEmitInput): Record<string, unknown> {
 
 function disclosureFieldsFor(schema: SoulboundSchemaId): string[] {
   switch (schema) {
-    case "soulbound:v1:access":       return ["resourceId", "accessLevel"];
-    case "soulbound:v1:membership":   return ["orgId", "memberSince", "tier"];
+    case "soulbound:v1:access":       return ["resourceId", "accessLevel", "usernameHash"];
+    case "soulbound:v1:membership":   return ["orgId", "memberSince", "tier", "usernameHash"];
     case "soulbound:v1:certificate":  return ["orgId", "achievementName", "issuedAt"];
     case "soulbound:v1:professional": return ["professionCode", "licenseNumber", "issuingAuthority"];
   }

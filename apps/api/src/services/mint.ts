@@ -41,7 +41,7 @@ export function createMintService(env: Env): MintService {
 function createMockMintService(_config: MintServiceConfig): MintService {
   let counter = 0;
   return {
-    async issueCredential(walletHash: string): Promise<string> {
+    async issueCredential(walletHash: string, _username?: string): Promise<string> {
       // Simulate network delay
       await new Promise((r) => setTimeout(r, 500));
       counter++;
@@ -68,10 +68,10 @@ function createRealMintService(config: MintServiceConfig, _env: Env): MintServic
   // );
   //
   // return {
-  //   async issueCredential(walletHash) {
+  //   async issueCredential(walletHash, username) {
   //     return issuer.emit({
   //       schema: config.schema,
-  //       subject: { walletAddress: walletHash, resourceId: config.resourceId, accessLevel: config.accessLevel },
+  //       subject: { walletAddress: walletHash, username, resourceId: config.resourceId, accessLevel: config.accessLevel },
   //     });
   //   },
   // };

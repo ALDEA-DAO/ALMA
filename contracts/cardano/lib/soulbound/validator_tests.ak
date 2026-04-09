@@ -29,6 +29,15 @@ const minter_vkh: VerificationKeyHash =
 const other_vkh: VerificationKeyHash =
   #"0000000000000000000000000000000000000000000000000000000000000004"
 
+const minter_stake_key: ByteArray =
+  #"0000000000000000000000000000000000000000000000000000000000000005"
+
+const other_stake_key: ByteArray =
+  #"0000000000000000000000000000000000000000000000000000000000000006"
+
+const test_username_hash: ByteArray =
+  #"a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+
 // ─── Mock MintConfig ────────────────────────────────────────────────────────
 
 fn mock_config() -> MintConfig {
@@ -71,44 +80,76 @@ test config_admin_matches() {
 
 // ─── MintReceipt validation tests ───────────────────────────────────────────
 
-test receipt_minter_matches() {
+test receipt_stake_key_matches() {
   let receipt = MintReceipt {
+    stake_key_hash: minter_stake_key,
     minter_vkh: minter_vkh,
     minted_at: 1711234567,
     payment_amount: 35_000_000,
     payment_method: "ada",
+    username_hash: "",
   }
-  receipt.minter_vkh == minter_vkh
+  receipt.stake_key_hash == minter_stake_key
 }
 
-test receipt_minter_mismatch() {
+test receipt_stake_key_mismatch() {
   let receipt = MintReceipt {
+    stake_key_hash: minter_stake_key,
     minter_vkh: minter_vkh,
     minted_at: 1711234567,
     payment_amount: 35_000_000,
     payment_method: "ada",
+    username_hash: "",
   }
-  receipt.minter_vkh != other_vkh
+  receipt.stake_key_hash != other_stake_key
 }
 
 test receipt_ada_method() {
   let receipt = MintReceipt {
+    stake_key_hash: minter_stake_key,
     minter_vkh: minter_vkh,
     minted_at: 1711234567,
     payment_amount: 35_000_000,
     payment_method: "ada",
+    username_hash: "",
   }
   receipt.payment_method == "ada"
 }
 
 test receipt_token_method() {
   let receipt = MintReceipt {
+    stake_key_hash: minter_stake_key,
     minter_vkh: minter_vkh,
     minted_at: 1711234567,
     payment_amount: 1000,
     payment_method: "aldea_token",
+    username_hash: "",
   }
   receipt.payment_method == "aldea_token"
+}
+
+test receipt_with_username_hash() {
+  let receipt = MintReceipt {
+    stake_key_hash: minter_stake_key,
+    minter_vkh: minter_vkh,
+    minted_at: 1711234567,
+    payment_amount: 35_000_000,
+    payment_method: "ada",
+    username_hash: test_username_hash,
+  }
+  receipt.username_hash == test_username_hash
+}
+
+test receipt_without_username_hash() {
+  let receipt = MintReceipt {
+    stake_key_hash: minter_stake_key,
+    minter_vkh: minter_vkh,
+    minted_at: 1711234567,
+    payment_amount: 35_000_000,
+    payment_method: "ada",
+    username_hash: "",
+  }
+  receipt.username_hash == ""
 }
 
 // ─── UpdateConfig validation tests ──────────────────────────────────────────

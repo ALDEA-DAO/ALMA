@@ -14,7 +14,7 @@ export interface CreatePaymentInput {
 }
 
 export interface MintService {
-  issueCredential(walletHash: string): Promise<string>;
+  issueCredential(walletHash: string, username?: string): Promise<string>;
 }
 
 export class PaymentService {
@@ -91,7 +91,7 @@ export class PaymentService {
     await this.updateStatus(paymentId, payment.status, "MINT_INITIATED");
 
     try {
-      const credentialId = await this.mintService.issueCredential(payment.wallet_hash);
+      const credentialId = await this.mintService.issueCredential(payment.wallet_hash, payment.username ?? undefined);
 
       await this.queries.setCredentialId(credentialId, paymentId);
       await this.queries.insertAuditLog(paymentId, "MINT_INITIATED", "COMPLETE", `Credential issued: ${credentialId}`);

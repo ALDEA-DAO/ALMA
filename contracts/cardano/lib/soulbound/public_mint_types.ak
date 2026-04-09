@@ -27,9 +27,12 @@ pub type MintConfig {
 }
 
 /// Receipt datum stored for each successful mint.
-/// Used for anti-double-mint: one receipt per minter wallet.
+/// Uses stake_key_hash for anti-double-mint: one credential per staking identity.
+/// This prevents HD wallets from minting multiple credentials via different payment addresses.
 pub type MintReceipt {
-  /// Key hash of the wallet that minted
+  /// Stake key hash of the wallet that minted (used for anti-double-mint)
+  stake_key_hash: ByteArray,
+  /// Payment key hash of the transaction signer
   minter_vkh: VerificationKeyHash,
   /// Slot when the mint occurred
   minted_at: Int,
@@ -37,6 +40,8 @@ pub type MintReceipt {
   payment_amount: Int,
   /// Payment method: "ada" or "aldea_token"
   payment_method: ByteArray,
+  /// SHA-256 hash of the username (empty = no username linked)
+  username_hash: ByteArray,
 }
 
 // ─── Redeemer Actions ───────────────────────────────────────────────────────

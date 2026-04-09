@@ -46,6 +46,7 @@ export interface SoulboundCredential {
   // Holder data (shielded in Midnight — never exposed publicly)
   subject: {
     walletHash: string;          // Hash of the wallet (not the public address)
+    usernameHash?: string;       // SHA-256 hash of username (selectively disclosable)
     memberId?: string;           // Internal org ID (encrypted)
     metadata?: Record<string, unknown>; // Extra data (shielded)
   };
@@ -77,8 +78,8 @@ export const SOULBOUND_SCHEMAS: Record<SoulboundSchemaId, SoulboundSchemaDefinit
   "soulbound:v1:membership": {
     schemaId: "soulbound:v1:membership",
     requiredFields: ["orgId", "walletHash", "issuedAt"],
-    optionalFields: ["memberId", "memberSince", "tier", "expiresAt"],
-    disclosableFields: ["orgId", "memberSince", "tier"],
+    optionalFields: ["memberId", "memberSince", "tier", "expiresAt", "usernameHash"],
+    disclosableFields: ["orgId", "memberSince", "tier", "usernameHash"],
   },
   "soulbound:v1:certificate": {
     schemaId: "soulbound:v1:certificate",
@@ -95,8 +96,8 @@ export const SOULBOUND_SCHEMAS: Record<SoulboundSchemaId, SoulboundSchemaDefinit
   "soulbound:v1:access": {
     schemaId: "soulbound:v1:access",
     requiredFields: ["orgId", "walletHash", "resourceId", "issuedAt"],
-    optionalFields: ["accessLevel", "expiresAt"],
-    disclosableFields: ["resourceId", "accessLevel"],
+    optionalFields: ["accessLevel", "expiresAt", "usernameHash"],
+    disclosableFields: ["resourceId", "accessLevel", "usernameHash"],
   },
 } as const;
 
@@ -129,6 +130,7 @@ export interface SoulboundEmitInput {
   schema: SoulboundSchemaId;
   subject: {
     walletAddress: string;   // Public address (hashed internally before storing)
+    username?: string;       // Plaintext username (hashed internally before storing)
     resourceId?: string;     // For "soulbound:v1:access" schema
     accessLevel?: string;    // For "soulbound:v1:access" schema
     memberId?: string;

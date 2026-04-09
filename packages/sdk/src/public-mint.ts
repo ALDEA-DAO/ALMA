@@ -62,9 +62,11 @@ export interface PublicMintListenerConfig {
 
 export interface MintProcessedEvent {
   walletAddress: string;
+  stakeKeyHash: string;
   credentialId: SoulboundCredentialId;
   paymentTxHash: string;
   paymentAmount: bigint;
+  usernameHash: string;
   processedAt: number;
 }
 
@@ -78,9 +80,11 @@ export interface MintError {
 interface MintReceiptUtxo {
   txHash: string;
   outputIndex: number;
+  stakeKeyHash: string;
   minterAddress: string;
   paymentAmount: bigint;
   mintedAt: number;
+  usernameHash: string;
 }
 
 interface PendingMint {
@@ -202,9 +206,11 @@ export class PublicMintListener {
 
         this.config.onMintProcessed?.({
           walletAddress: pending.receipt.minterAddress,
+          stakeKeyHash: pending.receipt.stakeKeyHash,
           credentialId,
           paymentTxHash: pending.receipt.txHash,
           paymentAmount: pending.receipt.paymentAmount,
+          usernameHash: pending.receipt.usernameHash,
           processedAt: Math.floor(Date.now() / 1000),
         });
       } catch (err) {
@@ -267,23 +273,29 @@ export class PublicMintListener {
 
     try {
       const datum = JSON.parse(utxo.inline_datum);
-      // MintReceipt has 3 fields: minter_vkh, minted_at, payment_amount
-      if (datum.fields?.length !== 3) return null;
+      // MintReceipt has 6 fields: stake_key_hash, minter_vkh, minted_at,
+      // payment_amount, payment_method, username_hash
+      if (datum.fields?.length !== 6) return null;
 
-      const minterVkh = datum.fields[0]?.bytes;
-      const mintedAt = datum.fields[1]?.int;
-      const paymentAmount = datum.fields[2]?.int;
+      const stakeKeyHash = datum.fields[0]?.bytes;
+      const minterVkh = datum.fields[1]?.bytes;
+      const mintedAt = datum.fields[2]?.int;
+      const paymentAmount = datum.fields[3]?.int;
+      // fields[4] = payment_method (not needed for processing)
+      const usernameHash = datum.fields[5]?.bytes ?? "";
 
-      if (!minterVkh || mintedAt === undefined || paymentAmount === undefined) {
+      if (!stakeKeyHash || !minterVkh || mintedAt === undefined || paymentAmount === undefined) {
         return null;
       }
 
       return {
         txHash: utxo.tx_hash,
         outputIndex: utxo.output_index,
+        stakeKeyHash,
         minterAddress: minterVkh, // In production, resolve to bech32 via Blockfrost
         paymentAmount: BigInt(paymentAmount),
         mintedAt,
+        usernameHash,
       };
     } catch {
       return null;

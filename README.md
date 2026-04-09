@@ -6,7 +6,7 @@ ALMA is ALDEA DAO's deployment of the Umbra soulbound credential system. It enab
 
 ## How it works
 
-1. **ALDEA issues** an ALMA credential to each member (or members mint their own by paying in ADA)
+1. **ALDEA issues** an ALMA credential to each member (or members mint their own by paying in ADA, fiat via Stripe/MercadoPago, or ALDEA tokens)
 2. **Members claim** their credential by connecting their wallet
 3. **ALDEA World verifies** access via ZK proof — confirms membership without seeing the wallet address
 
@@ -35,14 +35,27 @@ Member connects wallet
 ```
 alma/
 ├── apps/
-│   ├── web/             # alma.aldea.world — landing, mint, claim flows
-│   └── aldea-admin/     # Admin dashboard for issuing/revoking credentials
+│   ├── web/                 # alma.aldea.world — landing, mint, claim flows
+│   ├── api/                 # Backend API — payments, auth, minting, reconciliation
+│   └── aldea-world-demo/    # ALDEA World interactive demo
+├── packages/
+│   ├── core/                # @adasouls/soulbound-core — type definitions and schema validators
+│   ├── sdk/                 # @adasouls/soulbound-sdk — issuers, holders, verifiers
+│   ├── auth/                # @aldea/auth — wallet-based authentication
+│   └── react/               # @adasouls/soulbound-react — React components and hooks
 ├── contracts/
-│   └── cardano/         # Public mint contract (ADA payments)
+│   ├── cardano/             # Aiken smart contract for public minting (ADA payments)
+│   └── midnight/            # Midnight ZK credential contract
 ├── scripts/
-│   └── genesis-airdrop.ts  # One-shot airdrop to founding members
-└── config/
-    └── aldea.ts         # ALDEA-specific configuration (org, resources, pricing)
+│   ├── genesis-airdrop.ts   # One-shot airdrop to founding members
+│   ├── deploy-testnet.ts    # Deploy contracts to testnet
+│   └── deploy-devnet.ts     # Deploy contracts to devnet
+├── config/
+│   └── aldea.ts             # ALDEA-specific configuration (org, resources, pricing)
+├── docs/                    # Architecture, protocol, and deployment docs
+├── e2e/                     # End-to-end tests (Playwright)
+├── research/                # Security audit reports
+└── render.yaml              # Render deployment blueprint
 ```
 
 ## Setup
@@ -50,7 +63,21 @@ alma/
 ```bash
 git clone https://github.com/aldea-dao/alma.git
 cd alma
-npm install
+pnpm install
+```
+
+### Run the API locally
+
+```bash
+cp apps/api/.env.example apps/api/.env
+# Fill in the environment variables
+pnpm api:dev
+```
+
+### Run the web app
+
+```bash
+pnpm web:dev
 ```
 
 ## Genesis Airdrop
@@ -79,10 +106,14 @@ All ALDEA-specific settings live in `config/aldea.ts`:
 
 - **Organization**: ALDEA DAO PolicyId, name, public key
 - **Resources**: `aldea-world:main-gate`, `aldea-world:docs`, `aldea-world:governance`
-- **Mint price**: 10 ADA (configurable)
+- **Mint price**: 35 ADA (configurable)
 - **Access levels**: `MEMBER`, `TRIAL`, `FOUNDING_MEMBER`
 
 Copy `.env.example` to `.env` and fill in the real values.
+
+## Deployment
+
+The API deploys to [Render](https://render.com) using the `render.yaml` blueprint. Environment variables (database URL, Blockfrost key, wallet seed, etc.) are configured in the Render dashboard.
 
 ## Built on Umbra Protocol
 
